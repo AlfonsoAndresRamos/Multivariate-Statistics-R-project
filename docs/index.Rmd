@@ -1,0 +1,229 @@
+---
+title: "Multivariate statistics Project Alfonso Andres"
+author: "Alfonso Andres"
+date: "2023-01-03"
+output: html_document
+---
+## Introduction
+In this brief project, we will utilize various statistical techniques in R across four distinct datasets to illustrate key methodologies in multivariate analysis. The approaches demonstrated include Principal Component Analysis (PCA), fitting Generalized Linear Models (GLM), and hierarchical clustering, among others
+
+## Part 1: Pendigits. PCA
+```{r message = FALSE}
+##Read the dataset and download the corresponding libraries
+www_ = 'https://www.mimuw.edu.pl/~noble/courses/MultivariateStatistics/data/pendigits.txt'
+pendigits = read.csv(www_,header = FALSE, sep = ' ')
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+pendigits <- pendigits[,1:17]
+summary(pendigits)
+```
+We first open the dataset to look at the variables
+
+
+```{r}
+##Computing the variance of the 17 variables to see their similarity
+variance <-sapply(pendigits,var)
+variance
+
+```
+Variances are not very similar all together. However some of them are very alike in small groups
+
+```{r}
+##2
+##Carriyng a PCA over the covariance matrix
+pca<-prcomp(pendigits,scale = FALSE)
+summary(pca)
+```
+We compute the PCA With the prcomp command over the covariance matrix.
+summary gives the most important features of our PCA
+
+```{r}
+eigs <- pca$sdev^2
+eigs / sum(eigs)
+```
+If we want to have 80% of the data explained then we ought to take 5 variables.
+If we want 90% we have to take 7 variables.
+
+
+```{r}
+pairs(data.frame(pca$x[,1], pca$x[,2], pca$x[,3]), lower.panel = NULL,
+      labels = c('1st PC', '2nd PC', '3rd PC'), main = 'Pairwise Scatterplots',
+      col = rainbow(10)[pendigits$V17], pch = 19,  cex = 0.4)
+```
+We scatterplot the values 2 by 2 With the pairwise plot.
+
+```{r}
+corpendigits<-cor(pendigits)
+pcacor<-prcomp(corpendigits)
+summary(pcacor)
+```
+We know that for the correletion matrix ${M}$ $m_{ij}\in[-1,1]$. The pca standar deviations are therefore much smaller and so are the eigenvalues.
+
+
+```{r}
+screeplot(pca,type = 'lines',npcs = 17)
+```
+
+```{r}
+screeplot(pcacor,type='lines',npcs = 17)
+```
+For both PCA the elbow comes with the 4 principal component approximately
+
+There are some variables that are not very significant in the PCA, therefore there could be some problems when trying to invert $XX^T$.
+There is ill-conditioning in the data matrix
+
+## Part 2: Ozone levels. Correlation test
+```{r message = FALSE}
+library('ade4')
+library('kohonen')
+
+www3 = "https://www.mimuw.edu.pl/~noble/courses/MultivariateStatistics/data/ozone.csv"
+ozone = read.csv(www3,header= T)
+station.dists <- dist(cbind(ozone$Lon, ozone$Lat))
+ozone.dists <- dist(ozone$Av8top)
+mantel.rtest(station.dists, ozone.dists, nrepet = 2000)
+```
+This result tells us that both matrices are related. We reject the null hypothesis with a level of significance $\alpha=0.05$.
+
+
+## Part 3: Primate data. Hierarchical clustering
+```{r}
+
+library(cluster)
+wwwpr = 'https://www.mimuw.edu.pl/~noble/courses/MultivariateStatistics/data/primate.scapulae.txt'
+primate = read.csv(wwwpr,header = T,sep = " ",quote = "")
+scaleprimate<- scale(primate[,2:8])
+d <-dist(primate[,2:8])
+ward <-hclust(d,method = 'ward.D')##Compute the hierarchical clustering with the ward linkage
+plot(ward)
+wardclust <-rect.hclust(ward,k = 5)
+
+```
+The ward method is robust against outliers
+```{r}
+single <-hclust(d,method = 'single')
+plot(single)
+singleclust <-rect.hclust(ward,k = 5)
+```
+We can see that single method returns outliers
+
+```{r}
+complete<-hclust(d,method = 'complete')
+plot(complete)
+completeclust <-rect.hclust(ward,k = 5)
+```
+Complete linkage does not return outliers
+```{r}
+average<-hclust(d,method = 'average')
+plot(average)
+averageclust <-rect.hclust(ward,k = 5)
+```
+We can see that average method gives outliers
+```{r}
+divisive<-diana(primate[2:8])
+j<-pltree(divisive)
+divclust <-rect.hclust(divisive,k = 2)
+
+```
+The divisive method forms clusters by dividing the data from one initial cluster that gathers the entire dataset.
+This method does not generate outliers
+
+
+
+Computing all possibilities this is the one that better adjusts to a good clustering for each of the four methods
+```{r}
+#> ward.D linkage
+#> 
+#>            
+#> Prediction  Gorilla Homo Hylobates Pan Pongo
+#>   Gorilla         0    4         2   0     2
+#>   Homo            0   35         0   0     0
+#>   Hylobates       0    0        14   0     0
+#>   Pan            14    0         0  20     0
+#>   Pongo           0    1         0   0    13
+#> 
+#>  Accuracy 
+#> 0.7809524
+
+
+
+
+
+#>single linkage
+#> 
+#>            
+#> Prediction  Gorilla Homo Hylobates Pan Pongo
+#>   Gorilla         0    0         0   0     1
+#>   Homo            0   39         0   0    13
+#>   Hylobates       0    1         0   0     0
+#>   Pan            14    0        16  20     0
+#>   Pongo           0    0         0   0     1
+#> 
+#>  Accuracy 
+#> 0.5714286 
+#> 
+#> 
+#> 
+#> 
+#>  complete linkage
+#> 
+#>            
+#> Prediction  Gorilla Homo Hylobates Pan Pongo
+#>   Gorilla         0    4         2   0     2
+#>   Homo            0   35         0   0     0
+#>   Hylobates       0    0        14   0     0
+#>   Pan            14    0         0  20     0
+#>   Pongo           0    1         0   0    13
+#> 
+#>  Accuracy 
+#> 0.7809524 
+#> 
+#> 
+#> average linkage
+#> 
+#>            
+#> Prediction  Gorilla Homo Hylobates Pan Pongo
+#>   Gorilla         0    0         0   0     1
+#>   Homo            0   36         0   0    13
+#>   Hylobates       0    0        16   0     0
+#>   Pan            14    0         0  20     0
+#>   Pongo           0    4         0   0     1
+#> 
+#>  Accuracy 
+#> 0.6952381 
+
+```
+The ward and complete linkage perform equally good.They have the highest and same rating;that is why they are the optimal linkage to use for this particular case.
+Single and average leave out some important points and have lower rating. Single has the lowest
+
+## Part 4: Doctor visits. GLM model
+```{r message = FALSE}
+library(AER)
+library('MASS')
+data('DoctorVisits')
+poisson <-glm(visits~.,data = DoctorVisits,family=poisson())
+poisson
+```
+```{r}
+coeftest(poisson)
+dispersiontest(poisson)
+```
+Variables age, privateyes, freerepatres, nchronicyes and lchronicyes are less important. They dont have the same estimation
+```{r}
+dispersiontest(poisson)
+```
+since $\alpha>0$ there is overdispersion. 
+To handle this we will use a negativeBinomial regression to compare both models related to the number of visits
+```{r}
+negbin_re<-glm.nb(visits~.,data=DoctorVisits)
+coeftest(negbin_re)
+```
+
+```{r}
+logLik(poisson)
+logLik(negbin_re)
+```
+ -3344,85 < -3198.838 and 12<13 the negativeBinomial regression gives a better fit. However both models have non-significant values
+ 
+ options(warn=0)
